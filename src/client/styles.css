@@ -871,7 +871,9 @@ p {
 .lb-row.pinned {
   position: sticky;
   bottom: calc(8px + env(safe-area-inset-bottom));
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  background: #10222c;
+  margin-top: 6px;
 }
 .lb-row .rank {
   font-family: var(--font-num);
