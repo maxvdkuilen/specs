@@ -219,7 +219,10 @@ async function main() {
 
   // Removals at random moments across the middle 90% of the lecture, plus one mis-tap that gets undone.
   const total = MINUTES * 60 * 1000;
-  const times = Array.from({ length: TARGET }, () => rnd(total * 0.05, total * 0.95)).sort((a, b) => a - b);
+  // Random moments across the lecture; the last removal is pinned near the end so the
+  // lecture finishes right around when the timer runs out.
+  const times = Array.from({ length: Math.max(0, TARGET - 1) }, () => rnd(total * 0.05, total * 0.93)).sort((a, b) => a - b);
+  if (TARGET > 0) times.push(rnd(total * 0.94, total * 0.97));
   const undoAt = TARGET >= 4 ? rndInt(1, TARGET - 2) : -1;
   for (let i = 0; i < times.length; i++) {
     const wait = t0 + times[i] - Date.now();

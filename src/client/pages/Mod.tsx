@@ -6,6 +6,7 @@ import { secondsUntil, syncServerTime, useNow } from '../clock';
 import { StateChip } from '../components/StateChip';
 import { useStore } from '../store';
 import { useLive } from '../useLive';
+import { useWakeLock } from '../useWakeLock';
 import { NotFound } from './NotFound';
 import type { ModState } from '../../shared/types';
 
@@ -219,6 +220,7 @@ interface CounterProps {
 function Counter({ mod, count, now, connected, onChanged }: CounterProps) {
   const session = mod.session!;
   const navigate = useNavigate();
+  useWakeLock(true); // the moderator's phone must not lock mid-lecture
   const [pending, setPending] = useState(0);
   const [flash, setFlash] = useState(false);
   const [pulse, setPulse] = useState(false);

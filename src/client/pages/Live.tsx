@@ -10,6 +10,7 @@ import { ResultsModal } from '../components/ResultsModal';
 import { StateChip, describeState } from '../components/StateChip';
 import { useStore } from '../store';
 import { useLive } from '../useLive';
+import { useWakeLock } from '../useWakeLock';
 
 const SEEN_KEY = 'specs.seenResults';
 
@@ -25,6 +26,8 @@ export function Live() {
 
   const snap = live.snap;
   const session = snap?.session ?? null;
+  // Keep the screen on while a lecture is in progress.
+  useWakeLock(Boolean(session && session.state !== 'finished'));
 
   // Auto-open the results modal once per finished session.
   useEffect(() => {
