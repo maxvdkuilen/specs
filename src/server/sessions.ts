@@ -151,12 +151,12 @@ export async function getBins(q: Queryable, sessionId: number): Promise<{ bins: 
   return { bins, modBins };
 }
 
-async function getPastFinalCounts(q: Queryable, excludeId: number | null): Promise<number[]> {
-  const r = await q.query<{ final_count: unknown }>(
-    `SELECT final_count FROM sessions WHERE state = 'finished' AND final_count IS NOT NULL AND id <> $1 ORDER BY id`,
+async function getPastLectures(q: Queryable, excludeId: number | null): Promise<{ finalCount: number; durationSec: number }[]> {
+  const r = await q.query<{ final_count: unknown; duration_sec: unknown }>(
+    `SELECT final_count, duration_sec FROM sessions WHERE state = 'finished' AND final_count IS NOT NULL AND id <> $1 ORDER BY id`,
     [excludeId ?? -1],
   );
-  return r.rows.map((x) => num(x.final_count));
+  return r.rows.map((x) => ({ finalCount: num(x.final_count), durationSec: num(x.duration_sec) }));
 }
 
 async function getMyGuess(q: Queryable, sessionId: number, userId: number | null): Promise<number | null> {
@@ -212,7 +212,7 @@ export async function buildSnapshot(user: UserRow | null): Promise<LiveSnapshot>
       lastEventId: null,
       bins: new Array<number>(config.guessMax + 1).fill(0),
       modBins: new Array<number>(config.guessMax + 1).fill(0),
-      pastFinalCounts: await getPastFinalCounts(db, null),
+      pastLectures: await getPastLectures(db, null),
       myGuess: null,
       canGuess: false,
       stats: null,
@@ -220,11 +220,11 @@ export async function buildSnapshot(user: UserRow | null): Promise<LiveSnapshot>
     };
   }
   const id = num(session.id);
-  const [count, lastEventId, { bins, modBins }, pastFinalCounts, myGuess, myResult] = await Promise.all([
+  const [count, lastEventId, { bins, modBins }, pastLectures, myGuess, myResult] = await Promise.all([
     getCount(db, id),
     getLastEventId(db, id),
     getBins(db, id),
-    getPastFinalCounts(db, id),
+    getPastLectures(db, id),
     getMyGuess(db, id, user ? num(user.id) : null),
     getMyResult(db, session, user),
   ]);
@@ -235,7 +235,7 @@ export async function buildSnapshot(user: UserRow | null): Promise<LiveSnapshot>
     lastEventId,
     bins,
     modBins,
-    pastFinalCounts,
+    pastLectures,
     myGuess,
     canGuess: canGuessOn(session, now),
     stats: statsFromRow(session),

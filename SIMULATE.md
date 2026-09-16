@@ -12,12 +12,11 @@ npm run simulate -- --base https://YOUR-APP.onrender.com --mod YOUR_USERNAME --p
 
 What happens:
 
-1. Logs in as your moderator account and creates a draft lecture (3 minutes by default). Every phone on the site flips to the guess screen.
-2. Brings in 40 simulated students, named like `sim_eager_otter_07`, who each sign up (first time) or log in and guess. Bars spring up one by one.
-3. Waits 20 seconds so real people can lock in a guess too (`--wait 60` for a minute).
-4. Starts the lecture. A few simulated students change their guess while guessing is still open.
-5. Fires a random number of removals (5 to 18, or `--count 12`) at random moments, including one mis-tap that is undone.
-6. Ends the lecture when the timer runs out. Results popup everywhere, leaderboard updates.
+1. Logs in as your moderator account, creates a lecture (3 minutes by default) and starts it straight away. Every phone on the site flips to the guess screen, timer running.
+2. Brings in 40 simulated students, named like `sim_eager_otter_07`, who each sign up (first time) or log in and guess while the clock runs. Bars spring up one by one. Real people can guess too; guessing stays open for the lock period.
+3. A few simulated students change their guess.
+4. Fires a random number of removals (5 to 18, or `--count 12`) at random moments, including one mis-tap that is undone.
+5. Ends the lecture 4 seconds after the last removal. Results popup everywhere, leaderboard updates.
 
 Options (write them as `--name value` or `--name=value`):
 
@@ -28,7 +27,7 @@ Options (write them as `--name value` or `--name=value`):
 | `--students` | 40 | simulated students |
 | `--minutes` | 3 | lecture length (minimum 1) |
 | `--count` | random 5..18 | glasses removals |
-| `--wait` | 20 | seconds before Start |
+| `--wait` | 0 | seconds between Start and the first simulated guess |
 | `--no-students` | | only you and your friends guess |
 
 If a session is already active the script refuses; end it from `/mod` first.
@@ -56,6 +55,6 @@ Remove-Item Env:DATABASE_URL
 
 Do the reset before class: every finished session, including simulations, feeds the projection prior and the leaderboard until then.
 
-## A note on the projection arrow in short simulations
+## How the projection arrow works
 
-The arrow starts from a prior worth 10 minutes of evidence, which is a small part of a 75-minute lecture but dominates a 3-minute one, so it moves less than it will in class. It is never shown below the live count.
+Projected final = current count + expected removals in the time left. The rate is what has been observed so far (count / elapsed), blended with a prior from past finished lectures whose weight grows with how many there are: none gives no prior, one a third of full weight, two a half, many the full 10-minute-equivalent. Before any lecture has finished, the crowd's median guess acts as a weak stabiliser worth about one minute of evidence (`PROJECTION_CROWD_TAU_SEC`, 0 disables). Prior weights scale with lecture length, so a 3-minute simulation behaves like a 75-minute lecture. The arrow is hidden for the first 2 minutes and never shown below the live count.

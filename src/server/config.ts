@@ -34,6 +34,7 @@ export const config = {
   defaultDurationSec: int('DEFAULT_DURATION_SEC', 4500),
   projectionTauSec: int('PROJECTION_TAU_SEC', 600),
   projectionMinElapsedSec: int('PROJECTION_MIN_ELAPSED_SEC', 120),
+  projectionCrowdTauSec: int('PROJECTION_CROWD_TAU_SEC', 60),
   eloKNew: int('ELO_K_NEW', 48),
   eloK: int('ELO_K', 32),
   eloNewSessions: int('ELO_NEW_SESSIONS', 5),
@@ -61,5 +62,6 @@ export function publicConfig(): PublicConfig {
     defaultDurationSec: config.defaultDurationSec,
     projectionTauSec: config.projectionTauSec,
     projectionMinElapsedSec: config.projectionMinElapsedSec,
+    projectionCrowdTauSec: config.projectionCrowdTauSec,
   };
 }

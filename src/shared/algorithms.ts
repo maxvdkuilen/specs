@@ -209,35 +209,59 @@ export function histogramRange(bins: number[], count: number, min = 0): [number,
 // 7.2 Projected final count
 // ---------------------------------------------------------------------------
 
+export interface PastLecture {
+  finalCount: number;
+  durationSec: number;
+}
+
 export interface ProjectionInput {
   count: number;
   elapsedSec: number;
   durationSec: number;
-  /** Prior rate in events per second. */
-  priorRate: number;
-  /** Prior strength in seconds (default 600). */
+  /** Finished lectures, used as a prior whose weight grows with their number. */
+  pastLectures?: PastLecture[];
+  /** Median guess of this lecture's crowd; a weak stabiliser only when no lecture has finished yet. */
+  crowdMedian?: number | null;
+  /** Full prior strength in seconds, for a lecture of referenceDurationSec (default 600). */
   tauSec?: number;
+  /** Strength of the crowd stabiliser in seconds, same reference (default 60; 0 disables). */
+  crowdTauSec?: number;
+  /** Lecture length the tau values refer to (default 4500). Shorter lectures scale them down. */
+  referenceDurationSec?: number;
 }
 
 /**
- * Blend of the observed rate with a prior rate, scaled to the full lecture. Rounded to 0.1.
- * Never below the current count: the final count cannot go down.
+ * Projected final count = current count + expected removals in the remaining time.
+ * The rate is the observed rate (count / elapsed), blended with a prior from past
+ * lectures weighted by how many there are: tau * n / (n + 2), so none -> no prior,
+ * one -> a third, two -> half, many -> full. Never below the current count.
  */
-export function projectFinal({ count, elapsedSec, durationSec, priorRate, tauSec = 600 }: ProjectionInput): number {
-  const e = Math.max(0, elapsedSec);
-  const raw = ((count + priorRate * tauSec) / (e + tauSec)) * durationSec;
-  return Math.max(count, Math.round(raw * 10) / 10);
-}
+export function projectFinal({
+  count,
+  elapsedSec,
+  durationSec,
+  pastLectures = [],
+  crowdMedian = null,
+  tauSec = 600,
+  crowdTauSec = 60,
+  referenceDurationSec = 4500,
+}: ProjectionInput): number {
+  const e = Math.max(1, elapsedSec);
+  const remaining = Math.max(0, durationSec - e);
+  const scale = referenceDurationSec > 0 ? durationSec / referenceDurationSec : 1;
 
-/**
- * Prior rate r0 (events / second): median of past final counts if any exist,
- * otherwise the median of this session's guesses. Returns 0 with no information.
- */
-export function priorRate(pastFinalCounts: number[], currentGuesses: number[], durationSec: number): number {
-  if (durationSec <= 0) return 0;
-  if (pastFinalCounts.length > 0) return median(pastFinalCounts) / durationSec;
-  if (currentGuesses.length > 0) return median(currentGuesses) / durationSec;
-  return 0;
+  const pastRates = pastLectures.filter((l) => l.durationSec > 0).map((l) => l.finalCount / l.durationSec);
+  const n = pastRates.length;
+  const tauPast = n > 0 ? tauSec * scale * (n / (n + 2)) : 0;
+  const ratePast = n > 0 ? median(pastRates) : 0;
+
+  const useCrowd = n === 0 && crowdMedian !== null && crowdTauSec > 0 && durationSec > 0;
+  const tauCrowd = useCrowd ? crowdTauSec * scale : 0;
+  const rateCrowd = useCrowd ? (crowdMedian as number) / durationSec : 0;
+
+  const rate = (count + ratePast * tauPast + rateCrowd * tauCrowd) / (e + tauPast + tauCrowd);
+  const projected = count + rate * remaining;
+  return Math.max(count, Math.round(projected * 10) / 10);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { binsToValues, formatClock, median, priorRate, projectFinal } from '../../shared/algorithms';
+import { binsToValues, formatClock, median, projectFinal } from '../../shared/algorithms';
 import { api } from '../api';
 import { secondsUntil, serverNow, useNow } from '../clock';
 import { CountDisplay } from '../components/CountDisplay';
@@ -63,8 +63,11 @@ export function Live() {
         count: snap.count,
         elapsedSec: elapsedQ,
         durationSec: session.durationSec,
-        priorRate: priorRate(snap.pastFinalCounts, guesses, session.durationSec),
+        pastLectures: snap.pastLectures,
+        crowdMedian: guesses.length ? median(guesses) : null,
         tauSec: boot.config.projectionTauSec,
+        crowdTauSec: boot.config.projectionCrowdTauSec,
+        referenceDurationSec: boot.config.defaultDurationSec,
       });
     }
     const toEnd = session.endsAt ? secondsUntil(session.endsAt) : null;

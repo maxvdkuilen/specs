@@ -9,7 +9,6 @@ import {
   oklchToHex,
   ordinal,
   populationSd,
-  priorRate,
   projectFinal,
   rampColor,
   rankByError,
@@ -86,31 +85,50 @@ describe('color ramp', () => {
 });
 
 describe('projection', () => {
-  it('equals the prior with no elapsed time', () => {
-    expect(projectFinal({ count: 0, elapsedSec: 0, durationSec: 4500, priorRate: 10 / 4500 })).toBe(10);
-  });
-  it('matches the PRD formula', () => {
-    const c = 4;
-    const e = 900;
-    const T = 4500;
-    const r0 = 12 / 4500;
-    const expected = ((c + r0 * 600) / (e + 600)) * T;
-    expect(projectFinal({ count: c, elapsedSec: e, durationSec: T, priorRate: r0 })).toBe(
-      Math.round(expected * 10) / 10,
-    );
-  });
-  it('converges toward the observed rate late in the lecture', () => {
-    const p = projectFinal({ count: 20, elapsedSec: 3000, durationSec: 4500, priorRate: 0 });
-    expect(p).toBeCloseTo(20 * (4500 / 3600), 1);
+  const T = 4500;
+  it('with no past lectures and no crowd, extrapolates the observed rate', () => {
+    // 4 removals in 900 s -> 4 more per 900 s over the remaining 3600 s = 16 more
+    expect(projectFinal({ count: 4, elapsedSec: 900, durationSec: T, crowdTauSec: 0 })).toBe(20);
   });
   it('never projects below the current count', () => {
-    expect(projectFinal({ count: 20, elapsedSec: 4500, durationSec: 4500, priorRate: 0 })).toBe(20);
-    expect(projectFinal({ count: 11, elapsedSec: 180, durationSec: 180, priorRate: 7 / 180 })).toBe(11);
+    expect(projectFinal({ count: 20, elapsedSec: 4500, durationSec: T })).toBe(20);
+    expect(projectFinal({ count: 11, elapsedSec: 180, durationSec: 180, crowdMedian: 7 })).toBe(11);
   });
-  it('priorRate prefers past sessions, then current guesses', () => {
-    expect(priorRate([8, 12, 10], [1, 1, 1], 4500)).toBeCloseTo(10 / 4500);
-    expect(priorRate([], [5, 9, 7], 4500)).toBeCloseTo(7 / 4500);
-    expect(priorRate([], [], 4500)).toBe(0);
+  it('the crowd median is only a weak stabiliser, and only before any lecture has finished', () => {
+    const withCrowd = projectFinal({ count: 1, elapsedSec: 120, durationSec: T, crowdMedian: 10 });
+    const pure = projectFinal({ count: 1, elapsedSec: 120, durationSec: T, crowdTauSec: 0 });
+    expect(pure).toBeCloseTo(1 + (1 / 120) * 4380, 0);
+    expect(withCrowd).toBeLessThan(pure);
+    expect(withCrowd).toBeGreaterThan(20); // still mostly the observed rate
+    const past = [{ finalCount: 10, durationSec: T }];
+    const withPast = projectFinal({ count: 1, elapsedSec: 120, durationSec: T, crowdMedian: 10, pastLectures: past });
+    const withPastNoCrowd = projectFinal({ count: 1, elapsedSec: 120, durationSec: T, crowdMedian: null, pastLectures: past });
+    expect(withPast).toBe(withPastNoCrowd);
+  });
+  it('past lectures weigh in gradually: none, a third, half, then full tau', () => {
+    const c = 2;
+    const e = 600;
+    const past = (n: number) => Array.from({ length: n }, () => ({ finalCount: 12, durationSec: T }));
+    const expected = (n: number) => {
+      const tau = 600 * (n / (n + 2));
+      const rate = (c + (12 / T) * tau) / (e + tau);
+      return Math.round((c + rate * (T - e)) * 10) / 10;
+    };
+    for (const n of [1, 2, 5, 20]) {
+      expect(projectFinal({ count: c, elapsedSec: e, durationSec: T, pastLectures: past(n), crowdTauSec: 0 })).toBe(expected(n));
+    }
+    // More past lectures pull the projection closer to what the past rate alone would give.
+    const pastOnly = c + (12 / T) * (T - e);
+    const p1 = projectFinal({ count: c, elapsedSec: e, durationSec: T, pastLectures: past(1), crowdTauSec: 0 });
+    const p20 = projectFinal({ count: c, elapsedSec: e, durationSec: T, pastLectures: past(20), crowdTauSec: 0 });
+    expect(Math.abs(p20 - pastOnly)).toBeLessThan(Math.abs(p1 - pastOnly));
+  });
+  it('scales the prior down for short lectures so simulations behave like real ones', () => {
+    // A 3-minute lecture with many past lectures: prior tau = 600 * (180/4500) * ~1 = 24 s; the count dominates.
+    const past = Array.from({ length: 20 }, () => ({ finalCount: 12, durationSec: 4500 }));
+    const p = projectFinal({ count: 6, elapsedSec: 90, durationSec: 180, pastLectures: past });
+    expect(p).toBeGreaterThan(10);
+    expect(p).toBeLessThan(13);
   });
 });
 

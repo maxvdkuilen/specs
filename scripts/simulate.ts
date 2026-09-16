@@ -14,7 +14,7 @@
  *   --students  simulated students               default 40
  *   --minutes   lecture length                   default 3
  *   --count     glasses removals                 default random 5..18
- *   --wait      seconds before Start so real people can guess   default 20
+ *   --wait      seconds between Start and the first simulated guess   default 0
  *   --no-students  skip simulated students (only you and friends guess)
  *
  * Simulated students are real accounts named like "sim_eager_otter_07" with the
@@ -51,7 +51,7 @@ const MOD_USER = args.mod || process.env.SIMULATE_MOD || 'max';
 const PASSWORD = args.password || process.env.SEED_PASSWORD || 'specs-demo-2026';
 const STUDENTS = numArg('students', 40, 0, 200);
 const MINUTES = numArg('minutes', 3, 1, 180);
-const WAIT_SEC = numArg('wait', 20, 0, 3600);
+const WAIT_SEC = numArg('wait', 0, 0, 3600);
 const NO_STUDENTS = args['no-students'] === 'true';
 const SIM_PASSWORD = 'specs-sim-2026';
 
@@ -183,9 +183,17 @@ async function main() {
   const id = created.session.id;
   log(`Created draft session #${id} "${created.session.title}". Phones now show the guess screen.`);
 
+  await mod.must('POST', `/api/mod/sessions/${id}/start`);
+  log('Lecture started. Timer running; guessing stays open for the first minutes.');
+  if (WAIT_SEC > 0) {
+    log(`Waiting ${WAIT_SEC} seconds before the simulated students arrive.`);
+    await sleep(WAIT_SEC * 1000);
+  }
+  const t0 = Date.now();
+
   const students: Client[] = [];
   if (!NO_STUDENTS && STUDENTS > 0) {
-    log(`Bringing in ${STUDENTS} simulated students...`);
+    log(`Bringing in ${STUDENTS} simulated students while the clock runs...`);
     for (let i = 0; i < STUDENTS; i++) {
       const c = await studentSession(studentName(i));
       if (!c) continue;
@@ -201,13 +209,6 @@ async function main() {
     }
   }
 
-  if (WAIT_SEC > 0) {
-    log(`Starting in ${WAIT_SEC} seconds. Anyone watching should lock in a guess now.`);
-    await sleep(WAIT_SEC * 1000);
-  }
-  await mod.must('POST', `/api/mod/sessions/${id}/start`);
-  log('Lecture started.');
-
   // A few students change their minds while guessing is still open.
   const changers = students.filter(() => Math.random() < 0.15);
   for (const c of changers) {
@@ -220,7 +221,6 @@ async function main() {
   const total = MINUTES * 60 * 1000;
   const times = Array.from({ length: TARGET }, () => rnd(total * 0.05, total * 0.95)).sort((a, b) => a - b);
   const undoAt = TARGET >= 4 ? rndInt(1, TARGET - 2) : -1;
-  const t0 = Date.now();
   for (let i = 0; i < times.length; i++) {
     const wait = t0 + times[i] - Date.now();
     if (wait > 0) await sleep(wait);
@@ -235,11 +235,8 @@ async function main() {
       log(`undo         -> count ${r3.count}`);
     }
   }
-  const remaining = t0 + total - Date.now();
-  if (remaining > 0) {
-    log(`All ${TARGET} removals done. Waiting ${Math.round(remaining / 1000)}s for the timer...`);
-    await sleep(remaining + 1500);
-  }
+  log(`All ${TARGET} removals done. Ending in 4 seconds.`);
+  await sleep(4000);
   const ended = await mod.must<{ stats: Record<string, number> }>('POST', `/api/mod/sessions/${id}/end`);
   log(`Ended. Final count ${ended.stats.finalCount}, ${ended.stats.guessCount} guesses scored, ${ended.stats.exactCount} exact.`);
   log('Results are showing on every connected phone. See /leaderboard.');

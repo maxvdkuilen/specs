@@ -11,6 +11,7 @@ export interface PublicConfig {
   defaultDurationSec: number;
   projectionTauSec: number;
   projectionMinElapsedSec: number;
+  projectionCrowdTauSec: number;
 }
 
 export interface Me {
@@ -65,8 +66,8 @@ export interface LiveSnapshot {
   bins: number[];
   /** Same for moderator guesses (drawn outlined, not scored). */
   modBins: number[];
-  /** Final counts of past finished sessions, for the projection prior. */
-  pastFinalCounts: number[];
+  /** Finished lectures (final count and length), for the projection prior. */
+  pastLectures: { finalCount: number; durationSec: number }[];
   myGuess: number | null;
   /** Whether the current user may still submit / edit a guess. */
   canGuess: boolean;
