@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: specs
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/bootstrap
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PROFESSOR_NAME
+        value: Professor Brenner
+      - key: CLASS_NAME
+        value: AM215
