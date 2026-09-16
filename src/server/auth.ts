@@ -4,6 +4,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { config } from './config.js';
 import { getDb, num } from './db.js';
 import type { Me } from '../shared/types.js';
+import { passwordProblem, usernameProblem } from '../shared/validation.js';
 
 export const COOKIE_NAME = 'specs_session';
 
@@ -22,8 +23,6 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
 // ---------------------------------------------------------------------------
 // Username / password validation
 // ---------------------------------------------------------------------------
-
-const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 
 /** Small blocklist. Substring match, case-insensitive, after removing underscores and digits-as-letters. */
 const BLOCKLIST = [
@@ -44,18 +43,15 @@ function normalizeForBlocklist(s: string): string {
 }
 
 export function validateUsername(username: unknown): string | null {
-  if (typeof username !== 'string') return 'Username is required.';
-  if (!USERNAME_RE.test(username)) return 'Use 3 to 20 letters, numbers or underscores.';
-  const norm = normalizeForBlocklist(username);
-  if (BLOCKLIST.some((w) => norm.includes(w))) return 'That username is not allowed.';
+  const problem = usernameProblem(username);
+  if (problem) return problem;
+  const norm = normalizeForBlocklist(username as string);
+  if (BLOCKLIST.some((w) => norm.includes(w))) return 'That username is not allowed. Pick something else.';
   return null;
 }
 
 export function validatePassword(password: unknown): string | null {
-  if (typeof password !== 'string') return 'Password is required.';
-  if (password.length < 8) return 'Password must be at least 8 characters.';
-  if (password.length > 200) return 'Password is too long.';
-  return null;
+  return passwordProblem(password);
 }
 
 // ---------------------------------------------------------------------------

@@ -104,13 +104,13 @@ api.post(
   wrap(async (req, res) => {
     const { username, password, guess } = (req.body ?? {}) as Record<string, unknown>;
     const uErr = validateUsername(username);
-    if (uErr) throw new HttpError(400, uErr);
+    if (uErr) throw new HttpError(400, uErr, 'username');
     const pErr = validatePassword(password);
-    if (pErr) throw new HttpError(400, pErr);
+    if (pErr) throw new HttpError(400, pErr, 'password');
     if (guess !== undefined && guess !== null && guess !== '') parseGuess(guess);
 
     const db = await getDb();
-    if (await findUserByUsername(username as string)) throw new HttpError(409, 'That username is taken.');
+    if (await findUserByUsername(username as string)) throw new HttpError(409, 'That username is taken. Try another.', 'username');
     const passwordHash = await hashPassword(password as string);
 
     // User and guess are created in one transaction so the guess is never lost.
@@ -124,7 +124,7 @@ api.post(
         );
         created = r.rows[0];
       } catch (err) {
-        if (isUniqueViolation(err)) throw new HttpError(409, 'That username is taken.');
+        if (isUniqueViolation(err)) throw new HttpError(409, 'That username is taken. Try another.', 'username');
         throw err;
       }
       let guessValue: number | null = null;
@@ -160,8 +160,8 @@ api.post(
       throw new HttpError(429, 'Too many login attempts for this account. Try again in a few minutes.');
     }
     const user = await findUserByUsername(username);
-    const ok = user ? await verifyPassword(password, user.password_hash) : false;
-    if (!user || !ok) throw new HttpError(401, 'Wrong username or password.');
+    if (!user) throw new HttpError(401, 'No account with that username. Check the spelling, or create an account.', 'username');
+    if (!(await verifyPassword(password, user.password_hash))) throw new HttpError(401, 'Wrong password for this username.', 'password');
     setSessionCookie(res, num(user.id));
     const pending = await tryPendingGuess(user, guess);
     res.json({ me: toMe(user), ...pending });
@@ -397,7 +397,7 @@ api.use((_req: Request, res: Response) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 api.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json({ error: err.message, field: err.field ?? undefined });
     return;
   }
   const e = err as { type?: string; status?: number };

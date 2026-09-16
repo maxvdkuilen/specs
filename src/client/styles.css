@@ -1173,3 +1173,34 @@ p {
     transition: none !important;
   }
 }
+
+/* Password field with show / hide -------------------------------------------- */
+
+.pw-wrap {
+  position: relative;
+}
+.pw-input {
+  padding-right: 76px;
+}
+.pw-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
+.pw-toggle:hover {
+  background: rgba(0, 240, 255, 0.16);
+}
+
+.field-error {
+  color: var(--red);
+  font-size: 13px;
+  line-height: 1.4;
+}

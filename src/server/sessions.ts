@@ -21,6 +21,8 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Form field the message is about ("username" / "password"), so the client can show it inline. */
+    public readonly field: string | null = null,
   ) {
     super(message);
   }

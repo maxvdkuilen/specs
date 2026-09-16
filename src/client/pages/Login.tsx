@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
+import { PasswordInput } from '../components/PasswordInput';
 import { useStore } from '../store';
 
 export function Login() {
@@ -8,12 +9,14 @@ export function Login() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ field: string | null; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!username.trim()) return setError({ field: 'username', message: 'Enter your username.' });
+    if (!password) return setError({ field: 'password', message: 'Enter your password.' });
     setBusy(true);
     try {
       const r = await api.login(username.trim(), password, pendingGuess);
@@ -29,11 +32,16 @@ export function Login() {
       else if (activeWithGuess) navigate('/live', { replace: true });
       else navigate('/', { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+      if (err instanceof ApiError) setError({ field: err.field, message: err.message });
+      else setError({ field: null, message: 'Something went wrong.' });
     } finally {
       setBusy(false);
     }
   };
+
+  const uError = error?.field === 'username' ? error.message : null;
+  const pError = error?.field === 'password' ? error.message : null;
+  const generalError = error && !error.field ? error.message : null;
 
   return (
     <div className="page">
@@ -48,35 +56,41 @@ export function Login() {
         )}
       </div>
 
-      <form className="card stack" style={{ gap: 16 }} onSubmit={submit}>
+      <form className="card stack" style={{ gap: 16 }} onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="li-user">Username</label>
           <input
             id="li-user"
-            className="input"
+            className={`input${uError ? ' invalid' : ''}`}
             autoComplete="username"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setError(null);
+            }}
+            aria-invalid={Boolean(uError)}
             autoFocus
           />
+          {uError && <span className="field-error">{uError}</span>}
         </div>
         <div className="field">
           <label htmlFor="li-pass">Password</label>
-          <input
+          <PasswordInput
             id="li-pass"
-            className="input"
-            type="password"
-            autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
+            onChange={(v) => {
+              setPassword(v);
+              setError(null);
+            }}
+            autoComplete="current-password"
+            invalid={Boolean(pError)}
           />
+          {pError && <span className="field-error">{pError}</span>}
         </div>
-        {error && <div className="error">{error}</div>}
+        {generalError && <div className="error">{generalError}</div>}
         <button className="btn btn-primary" type="submit" disabled={busy}>
           {busy ? 'Logging in…' : pendingGuess !== null ? 'Log in and submit guess' : 'Log in'}
         </button>

@@ -4,6 +4,8 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Which form field the message is about, when the server says. */
+    public readonly field: string | null = null,
   ) {
     super(message);
   }
@@ -22,7 +24,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     throw new ApiError(0, 'No connection. Check your wifi and try again.');
   }
   const text = await res.text();
-  let json: { error?: string } & Record<string, unknown> = {};
+  let json: { error?: string; field?: string } & Record<string, unknown> = {};
   if (text) {
     try {
       json = JSON.parse(text);
@@ -30,7 +32,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       json = {};
     }
   }
-  if (!res.ok) throw new ApiError(res.status, (json.error as string) || `Request failed (${res.status}).`);
+  if (!res.ok) throw new ApiError(res.status, json.error || `Request failed (${res.status}).`, json.field ?? null);
   return json as T;
 }
 
