@@ -43,7 +43,7 @@ export const config = {
   /** Show a warning on /mod when a session has been active this long. */
   longRunningSec: 4 * 3600,
 
-  signupPerIpPerHour: int('SIGNUP_PER_IP_PER_HOUR', 40),
+  signupPerIpPerHour: int('SIGNUP_PER_IP_PER_HOUR', 120),
   loginPerIpPer15Min: int('LOGIN_PER_IP_PER_15MIN', 300),
 };
 

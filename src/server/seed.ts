@@ -63,10 +63,11 @@ async function studentsOnly(): Promise<void> {
 async function removeStudents(): Promise<void> {
   const db = await getDb();
   const r = await db.query(
-    `DELETE FROM users WHERE is_moderator = false AND lower(username) = ANY(SELECT lower(unnest($1::text[])))`,
+    `DELETE FROM users WHERE is_moderator = false
+       AND (lower(username) = ANY(SELECT lower(unnest($1::text[]))) OR username LIKE 'sim\_%')`,
     [STUDENTS],
   );
-  console.log(`Removed ${r.rowCount} fake students. Their guesses and rating history went with them.`);
+  console.log(`Removed ${r.rowCount} fake students (seeded and simulated). Their guesses and rating history went with them.`);
   await db.close();
 }
 

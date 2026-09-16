@@ -1,74 +1,61 @@
 # Simulating a lecture
 
-Use this to demo Specs before the first real lecture, or to rehearse the moderator flow.
+Use this to demo Specs before the first real lecture, or to rehearse the moderator flow. The simulation invents its own students, gives them random guesses, and fires a random number of glasses removals automatically. Nothing needs to be seeded first.
 
-## 1. Start the server with a compressed clock
+## Against your live site
 
-The lock normally happens 10 minutes after Start and the projection arrow waits 2 minutes. For a 3-minute fake lecture those become 30 and 20 seconds. `npm run dev:sim` starts the app with that preset (from `.env.sim`):
+In a terminal in the project folder:
 
-```bash
+```powershell
+npm run simulate -- --base https://YOUR-APP.onrender.com --mod YOUR_USERNAME --password YOUR_PASSWORD
+```
+
+What happens:
+
+1. Logs in as your moderator account and creates a draft lecture (3 minutes by default). Every phone on the site flips to the guess screen.
+2. Brings in 40 simulated students, named like `sim_eager_otter_07`, who each sign up (first time) or log in and guess. Bars spring up one by one.
+3. Waits 20 seconds so real people can lock in a guess too (`--wait 60` for a minute).
+4. Starts the lecture. A few simulated students change their guess while guessing is still open.
+5. Fires a random number of removals (5 to 18, or `--count 12`) at random moments, including one mis-tap that is undone.
+6. Ends the lecture when the timer runs out. Results popup everywhere, leaderboard updates.
+
+Options (write them as `--name value` or `--name=value`):
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--base` | `http://localhost:3000` | server URL |
+| `--mod` / `--password` | `max` / `specs-demo-2026` | moderator login |
+| `--students` | 40 | simulated students |
+| `--minutes` | 3 | lecture length (minimum 1) |
+| `--count` | random 5..18 | glasses removals |
+| `--wait` | 20 | seconds before Start |
+| `--no-students` | | only you and your friends guess |
+
+If a session is already active the script refuses; end it from `/mod` first.
+
+## Locally, with a compressed clock
+
+The lock normally happens 10 minutes after Start and the projection arrow waits 2 minutes. `npm run dev:sim` starts the app with those set to 30 and 20 seconds and a matching shorter prior for the projection (preset in `.env.sim`):
+
+```powershell
 npm run dev:sim
 ```
 
-`npm run dev` is the normal-clock version. You can also set `LOCK_AFTER_SEC` and `PROJECTION_MIN_ELAPSED_SEC` yourself in `.env`.
+Then in a second terminal, `npm run simulate`. Log in as a moderator locally with `max` / `specs-demo-2026` after `npm run seed`. Open http://localhost:5173 in a browser at 360 px wide to watch; on `/live` you should see cyan bars while the session is a draft, the magenta marker and green-to-red coloring once it starts, the violet projection arrow after 20 seconds, the chip flipping to Locked at 30 seconds, and the results modal at the end.
 
-Seed the database first if you have not: `npm run seed`. The seeded accounts (moderators `max`, `alex_mod`, `sam_mod` and 40 students) all use the password `specs-demo-2026`.
+## Cleaning up before the first real lecture
 
-## 2. Run the simulation
-
-In a second terminal:
-
-```bash
-npm run simulate
-```
-
-What it does, all through the public API:
-
-1. Logs in as moderator `max`.
-2. Creates a draft session with a 3-minute duration.
-3. Logs in 25 seeded students and submits a guess for each, roughly normal around the target count.
-4. Waits 5 seconds, then starts the lecture.
-5. Fires 11 `+1` count events spread over the lecture, including one mis-tap that is undone with a `-1` two seconds later.
-6. When the timer runs out, ends the lecture. Scoring runs, the results modal appears on every connected phone.
-
-Options:
-
-```bash
-npm run simulate -- --minutes=5 --count=14 --students=40
-npm run simulate -- --no-students          # only the moderator side; you and friends guess for real
-npm run simulate -- --base=https://your-app.onrender.com --password=the-mod-password
-```
-
-## 3. Watch it
-
-- Open http://localhost:5173 in a browser at 360 px wide, or on your phone use your computer's LAN address, e.g. http://192.168.1.20:5173 (same wifi; `ipconfig` shows the IPv4 address).
-- Guess as a new student before the 5-second countdown ends, or log in as any seeded student who has not guessed yet.
-- On `/live` you should see: cyan bars while the session is a draft; the magenta marker and green→yellow→red coloring once it starts; the violet projection arrow after 20 seconds; the countdown chip flipping to Locked at 30 seconds; the results modal when it ends.
-- Open `/mod` in another tab as `alex_mod` to see the counter screen mirror the scripted taps in real time. You can tap `+` yourself too; every tap is one event row.
-
-## 4. Reset
-
-`npm run seed -- --force` wipes everything and reseeds. Or just create a new session from `/mod`; finished sessions stay in the history and the leaderboard.
-
-## Demoing on the real deployment with 40 fake students
-
-The fake students only exist locally. To run a crowd simulation on the live site, add them there first, straight into the database. Get the connection string from Neon, then in PowerShell:
+Simulated students are real accounts with real ratings. Point the seed script at the live database and remove them, then reset the season so everyone starts at 1000. Get the connection string from Neon (or from Render's Environment tab).
 
 ```powershell
 $env:DATABASE_URL = "postgresql://...your Neon string..."
-npm run seed -- --students-only
-npm run simulate -- --base=https://YOUR-APP.onrender.com --mod=YOUR_USERNAME --password=YOUR_PASSWORD --students=40 --wait=60
+npm run seed -- --remove-students     # deletes every sim_* account and the seeded fake students, with their guesses and history
+npm run seed -- --reset-season        # deletes all sessions and resets every rating to 1000; keeps real accounts
+Remove-Item Env:DATABASE_URL
 ```
 
-`--wait=60` gives real people a minute to guess before the lecture starts. The 40 fake students all use the password `specs-demo-2026`, so a friend can also log in as one of them.
+Do the reset before class: every finished session, including simulations, feeds the projection prior and the leaderboard until then.
 
-Afterwards, before the first real lecture, clean up (same PowerShell window, `DATABASE_URL` still set):
+## A note on the projection arrow in short simulations
 
-```powershell
-npm run seed -- --remove-students     # deletes the 40 fake students and everything they did
-npm run seed -- --reset-season        # deletes every session and resets all ratings to 1000; keeps real accounts
-```
-
-Run `Remove-Item Env:DATABASE_URL` when done so later local commands use the local database again.
-
-A note on the projection arrow in short simulations: the prior it starts from is worth 10 minutes of evidence, which is a small part of a 75-minute lecture but dominates a 3-minute one, so the arrow moves less than it will in class.
+The arrow starts from a prior worth 10 minutes of evidence, which is a small part of a 75-minute lecture but dominates a 3-minute one, so it moves less than it will in class. It is never shown below the live count.
