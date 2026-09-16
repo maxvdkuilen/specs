@@ -50,6 +50,25 @@ npm run simulate -- --base=https://your-app.onrender.com --password=the-mod-pass
 
 `npm run seed -- --force` wipes everything and reseeds. Or just create a new session from `/mod`; finished sessions stay in the history and the leaderboard.
 
-## Rehearsing on the real deployment
+## Demoing on the real deployment with 40 fake students
 
-Point the script at production with `--base` and a moderator password. Use `--no-students` so fake accounts do not pollute the real leaderboard. A finished simulated session will count toward ratings for anyone who guessed, so rehearse before real students have accounts, or with a throwaway database.
+The fake students only exist locally. To run a crowd simulation on the live site, add them there first, straight into the database. Get the connection string from Neon, then in PowerShell:
+
+```powershell
+$env:DATABASE_URL = "postgresql://...your Neon string..."
+npm run seed -- --students-only
+npm run simulate -- --base=https://YOUR-APP.onrender.com --mod=YOUR_USERNAME --password=YOUR_PASSWORD --students=40 --wait=60
+```
+
+`--wait=60` gives real people a minute to guess before the lecture starts. The 40 fake students all use the password `specs-demo-2026`, so a friend can also log in as one of them.
+
+Afterwards, before the first real lecture, clean up (same PowerShell window, `DATABASE_URL` still set):
+
+```powershell
+npm run seed -- --remove-students     # deletes the 40 fake students and everything they did
+npm run seed -- --reset-season        # deletes every session and resets all ratings to 1000; keeps real accounts
+```
+
+Run `Remove-Item Env:DATABASE_URL` when done so later local commands use the local database again.
+
+A note on the projection arrow in short simulations: the prior it starts from is worth 10 minutes of evidence, which is a small part of a 75-minute lecture but dominates a 3-minute one, so the arrow moves less than it will in class.

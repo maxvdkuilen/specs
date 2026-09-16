@@ -2,6 +2,11 @@
  * Seed: 3 moderators, 40 fake students, one finished lecture with realistic guesses,
  * count events and rating history. Run with `npm run seed`. Refuses to touch a
  * database that already has users unless `--force` is passed (which wipes everything).
+ *
+ * Other modes (safe on a live database, point DATABASE_URL at it):
+ *   --students-only     add the 40 fake students if missing, change nothing else
+ *   --remove-students   delete the 40 fake students and their guesses / history
+ *   --reset-season      delete all sessions and reset every rating; keeps accounts
  */
 import { config } from './config.js';
 import { getDb, num } from './db.js';
@@ -38,7 +43,45 @@ function gaussian(rand: () => number): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
+/** Add the 40 fake students to an existing database without touching anything else. */
+async function studentsOnly(): Promise<void> {
+  const db = await getDb();
+  await ensureSchema(db);
+  const passwordHash = await hashPassword(process.env.SEED_PASSWORD || 'specs-demo-2026');
+  let added = 0;
+  for (const name of STUDENTS) {
+    const exists = await db.query('SELECT 1 FROM users WHERE lower(username) = lower($1)', [name]);
+    if (exists.rows.length) continue;
+    await db.query('INSERT INTO users (username, password_hash) VALUES ($1, $2)', [name, passwordHash]);
+    added++;
+  }
+  console.log(`Added ${added} fake students (${STUDENTS.length - added} already existed). Password: ${process.env.SEED_PASSWORD || 'specs-demo-2026'}`);
+  await db.close();
+}
+
+/** Remove the 40 fake students and everything they did (guesses, rating history). */
+async function removeStudents(): Promise<void> {
+  const db = await getDb();
+  const r = await db.query(
+    `DELETE FROM users WHERE is_moderator = false AND lower(username) = ANY(SELECT lower(unnest($1::text[])))`,
+    [STUDENTS],
+  );
+  console.log(`Removed ${r.rowCount} fake students. Their guesses and rating history went with them.`);
+  await db.close();
+}
+
+/** Fresh season: delete all sessions (cascades to guesses, count events, rating history) and reset ratings. Keeps accounts. */
+async function resetSeason(): Promise<void> {
+  const db = await getDb();
+  await db.exec('DELETE FROM sessions; UPDATE users SET rating = ' + config.eloStart + ', sessions_played = 0;');
+  console.log('All sessions deleted and every rating reset to ' + config.eloStart + '. Accounts kept.');
+  await db.close();
+}
+
 async function main(): Promise<void> {
+  if (process.argv.includes('--students-only')) return studentsOnly();
+  if (process.argv.includes('--remove-students')) return removeStudents();
+  if (process.argv.includes('--reset-season')) return resetSeason();
   const force = process.argv.includes('--force');
   const db = await getDb();
   await ensureSchema(db);

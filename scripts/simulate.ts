@@ -2,7 +2,7 @@
  * Fake lecture on a compressed timeline, driven purely through the public API.
  *
  *   npm run simulate                      # against http://localhost:3000, 3-minute lecture
- *   npm run simulate -- --base=https://specs.example.com --minutes=5 --count=12 --students=30
+ *   npm run simulate -- --base=https://specs.example.com --minutes=5 --count=12 --students=30 --wait=60
  *
  * Steps: log in as a moderator, create a session, have seeded students guess,
  * start the lecture, fire scripted +1 / -1 events over the compressed duration,
@@ -25,6 +25,7 @@ const STUDENTS = Number(args.students ?? 25);
 const MOD_USER = (args.mod as string) || process.env.SIMULATE_MOD || 'max';
 const PASSWORD = (args.password as string) || process.env.SEED_PASSWORD || 'specs-demo-2026';
 const NO_STUDENTS = args['no-students'] === 'true';
+const WAIT_SEC = Number(args.wait ?? 20);
 
 const SEEDED = [
   'quokka', 'brenner_fan', 'lens_flare', 'eigenvalue', 'spectacle', 'fourier_fox', 'blink182', 'optics_andy',
@@ -98,8 +99,8 @@ async function main() {
     await mod.call('PUT', '/api/guess', { value: TARGET + 1 });
   }
 
-  log('Starting in 5 seconds. Open /live on your phone now.');
-  await sleep(5000);
+  log(`Starting in ${WAIT_SEC} seconds. Anyone who wants to play should guess now.`);
+  await sleep(WAIT_SEC * 1000);
   await mod.must('POST', `/api/mod/sessions/${id}/start`);
   log('Lecture started. Firing count events...');
 

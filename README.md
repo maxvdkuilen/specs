@@ -30,6 +30,7 @@ npm test               # unit + integration tests
 npm run build          # client -> dist/client, server -> dist/server
 npm start              # run the production build on :3000
 npm run seed -- --force   # wipe and reseed
+npm run seed -- --students-only | --remove-students | --reset-season   # see SIMULATE.md
 npm run simulate       # fake lecture on a compressed timeline, see SIMULATE.md
 ```
 
