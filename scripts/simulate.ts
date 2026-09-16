@@ -94,27 +94,37 @@ const log = (msg: string) => console.log(`${new Date().toLocaleTimeString()}  ${
 
 class Client {
   cookie = '';
+  /** One request with retries on network errors, 5xx and non-JSON bodies (Render restarts, wifi blips). */
   async call<T = Record<string, unknown>>(method: string, path: string, body?: unknown): Promise<{ status: number; json: T & { error?: string } }> {
-    let res: Response;
-    try {
-      res = await fetch(BASE + path, {
-        method,
-        headers: { 'content-type': 'application/json', cookie: this.cookie },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-    } catch (err) {
-      throw new Error(`Could not reach ${BASE} (${(err as Error).message}). Is the server running / is the URL right?`);
+    let lastErr = '';
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const res = await fetch(BASE + path, {
+          method,
+          headers: { 'content-type': 'application/json', cookie: this.cookie },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        const set = res.headers.get('set-cookie');
+        if (set) this.cookie = set.split(';')[0];
+        const text = await res.text();
+        if (res.status >= 500) {
+          lastErr = `${res.status} from server`;
+        } else {
+          try {
+            return { status: res.status, json: (text ? JSON.parse(text) : {}) as T & { error?: string } };
+          } catch {
+            lastErr = `${res.status} with a non-JSON body: ${text.slice(0, 60).replace(/\s+/g, ' ')}`;
+          }
+        }
+      } catch (err) {
+        lastErr = `network error: ${(err as Error).message}`;
+      }
+      if (attempt < 4) {
+        log(`  ${method} ${path} failed (${lastErr}), retrying in ${attempt * 2}s...`);
+        await sleep(attempt * 2000);
+      }
     }
-    const set = res.headers.get('set-cookie');
-    if (set) this.cookie = set.split(';')[0];
-    const text = await res.text();
-    let json: T & { error?: string };
-    try {
-      json = (text ? JSON.parse(text) : {}) as T & { error?: string };
-    } catch {
-      throw new Error(`${method} ${path} returned ${res.status} with a non-JSON body: ${text.slice(0, 80)}`);
-    }
-    return { status: res.status, json };
+    throw new Error(`${method} ${path} kept failing: ${lastErr}. Is ${BASE} up? (Render takes ~1 min to wake and a few minutes to redeploy.)`);
   }
   async must<T = Record<string, unknown>>(method: string, path: string, body?: unknown): Promise<T> {
     const r = await this.call<T>(method, path, body);
@@ -126,16 +136,21 @@ class Client {
 /** Log in as a simulated student, creating the account on first use. Returns the client or null. */
 async function studentSession(name: string): Promise<Client | null> {
   const c = new Client();
-  const login = await c.call('POST', '/api/login', { username: name, password: SIM_PASSWORD });
-  if (login.status === 200) return c;
-  if (login.status === 401) {
+  try {
+    const login = await c.call('POST', '/api/login', { username: name, password: SIM_PASSWORD });
+    if (login.status === 200) return c;
+    if (login.status !== 401) {
+      log(`  could not log in ${name}: ${login.json.error ?? login.status}`);
+      return null;
+    }
     const signup = await c.call('POST', '/api/signup', { username: name, password: SIM_PASSWORD });
     if (signup.status === 201) return c;
     log(`  could not create ${name}: ${signup.json.error ?? signup.status}`);
     return null;
+  } catch (err) {
+    log(`  ${name}: ${(err as Error).message}`);
+    return null;
   }
-  log(`  could not log in ${name}: ${login.json.error ?? login.status}`);
-  return null;
 }
 
 function randomGuess(): number {
@@ -180,9 +195,9 @@ async function main() {
       else log(`  ${studentName(i)} could not guess: ${r.json.error ?? r.status}`);
       await sleep(rnd(120, 400)); // guesses trickle in, bars spring up one by one
     }
-    log(`${students.length} simulated students guessed.`);
+    log(`${students.length} of ${STUDENTS} simulated students guessed.`);
     if (students.length === 0) {
-      throw new Error('No simulated student could guess. If they said "Too many accounts", the signup rate limit was hit; wait an hour or use --no-students.');
+      log('WARNING: no simulated student could guess (see reasons above). Continuing with the lecture anyway.');
     }
   }
 
@@ -197,7 +212,7 @@ async function main() {
   const changers = students.filter(() => Math.random() < 0.15);
   for (const c of changers) {
     await sleep(rnd(500, 2500));
-    await c.call('PUT', '/api/guess', { value: randomGuess() });
+    await c.call('PUT', '/api/guess', { value: randomGuess() }).catch(() => undefined);
   }
   if (changers.length) log(`${changers.length} students edited their guess.`);
 

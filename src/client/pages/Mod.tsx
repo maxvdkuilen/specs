@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { formatClock } from '../../shared/algorithms';
 import { api } from '../api';
 import { secondsUntil, syncServerTime, useNow } from '../clock';
@@ -218,6 +218,7 @@ interface CounterProps {
 
 function Counter({ mod, count, now, connected, onChanged }: CounterProps) {
   const session = mod.session!;
+  const navigate = useNavigate();
   const [pending, setPending] = useState(0);
   const [flash, setFlash] = useState(false);
   const [pulse, setPulse] = useState(false);
@@ -280,6 +281,7 @@ function Counter({ mod, count, now, connected, onChanged }: CounterProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === '+' || e.key === '=' || e.key === 'ArrowUp') void send(1);
       if (e.key === '-' || e.key === 'ArrowDown' || e.key === 'Backspace') void send(-1);
+      if (e.key === 'Escape') navigate('/');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -303,6 +305,9 @@ function Counter({ mod, count, now, connected, onChanged }: CounterProps) {
         </button>
       </div>
       <div className="mod-chip-row">
+        <button className="btn btn-ghost btn-sm mod-leave" onClick={() => navigate('/')} title="The lecture keeps running">
+          ← Leave
+        </button>
         <StateChip session={session} now={now} />
       </div>
 

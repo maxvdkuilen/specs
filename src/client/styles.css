@@ -1001,8 +1001,16 @@ p {
 }
 .mod-chip-row {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: 4px 16px 8px;
+}
+.mod-leave {
+  min-height: 36px;
+  font-size: 13px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .mod-minus {
