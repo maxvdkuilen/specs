@@ -4,17 +4,13 @@ Use this to demo Specs before the first real lecture, or to rehearse the moderat
 
 ## 1. Start the server with a compressed clock
 
-The lock normally happens 10 minutes after Start. For a 3-minute fake lecture, make it 30 seconds. The projection arrow normally waits 2 minutes; make it 20 seconds. Run this in one terminal:
+The lock normally happens 10 minutes after Start and the projection arrow waits 2 minutes. For a 3-minute fake lecture those become 30 and 20 seconds. `npm run dev:sim` starts the app with that preset (from `.env.sim`):
 
 ```bash
-LOCK_AFTER_SEC=30 PROJECTION_MIN_ELAPSED_SEC=20 npm run dev
+npm run dev:sim
 ```
 
-On Windows PowerShell:
-
-```powershell
-$env:LOCK_AFTER_SEC=30; $env:PROJECTION_MIN_ELAPSED_SEC=20; npm run dev
-```
+`npm run dev` is the normal-clock version. You can also set `LOCK_AFTER_SEC` and `PROJECTION_MIN_ELAPSED_SEC` yourself in `.env`.
 
 Seed the database first if you have not: `npm run seed`. The seeded accounts (moderators `max`, `alex_mod`, `sam_mod` and 40 students) all use the password `specs-demo-2026`.
 
@@ -45,7 +41,7 @@ npm run simulate -- --base=https://your-app.onrender.com --password=the-mod-pass
 
 ## 3. Watch it
 
-- Open http://localhost:5173 on your phone (same wifi, use your computer's LAN IP instead of localhost) or in a browser at 360 px wide.
+- Open http://localhost:5173 in a browser at 360 px wide, or on your phone use your computer's LAN address, e.g. http://192.168.1.20:5173 (same wifi; `ipconfig` shows the IPv4 address).
 - Guess as a new student before the 5-second countdown ends, or log in as any seeded student who has not guessed yet.
 - On `/live` you should see: cyan bars while the session is a draft; the magenta marker and green→yellow→red coloring once it starts; the violet projection arrow after 20 seconds; the countdown chip flipping to Locked at 30 seconds; the results modal when it ends.
 - Open `/mod` in another tab as `alex_mod` to see the counter screen mirror the scripted taps in real time. You can tap `+` yourself too; every tap is one event row.

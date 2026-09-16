@@ -9,7 +9,9 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:sim": "concurrently -k -n server,client -c cyan,magenta \"npm:dev:server:sim\" \"npm:dev:client\"",
     "dev:server": "tsx watch src/server/index.ts",
+    "dev:server:sim": "tsx --env-file=.env.sim watch src/server/index.ts",
     "dev:client": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
     "start": "node dist/server/server/index.js",
