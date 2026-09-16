@@ -54,7 +54,8 @@ export function Live() {
     const st = describeState(session, now);
     const hasCount = session.state !== 'draft';
     const elapsed = session.startedAt ? (serverNow() - new Date(session.startedAt).getTime()) / 1000 : 0;
-    const guesses = binsToValues(snap.bins);
+    const allBins = snap.bins.map((n, i) => n + (snap.modBins[i] ?? 0));
+    const guesses = binsToValues(allBins);
     let projected: number | null = null;
     if ((session.state === 'open' || session.state === 'locked') && elapsed >= boot.config.projectionMinElapsedSec) {
       const elapsedQ = Math.floor(elapsed / 15) * 15; // recompute every 15 s (and on every count change)
@@ -67,7 +68,7 @@ export function Live() {
       });
     }
     const toEnd = session.endsAt ? secondsUntil(session.endsAt) : null;
-    return { st, hasCount, projected, toEnd, total: guesses.length, med: median(guesses) };
+    return { st, hasCount, projected, toEnd, total: guesses.length, med: median(guesses), allBins };
   }, [snap, session, boot, now]);
 
   if (!boot) return <div className="spinner" />;
@@ -121,8 +122,7 @@ export function Live() {
 
       <div className="card" style={{ padding: '8px 10px 4px' }}>
         <Histogram
-          bins={snap.bins}
-          modBins={snap.modBins}
+          bins={derived.allBins}
           count={snap.count}
           hasCount={derived.hasCount}
           myGuess={snap.myGuess}

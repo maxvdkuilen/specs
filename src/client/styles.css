@@ -457,6 +457,8 @@ p {
   color: var(--text-dim);
   border: 1px solid var(--border);
   white-space: nowrap;
+  align-self: flex-start;
+  width: fit-content;
 }
 .chip .dot {
   width: 7px;
@@ -605,16 +607,6 @@ p {
     opacity 320ms ease,
     box-shadow 320ms ease;
   transform-origin: bottom;
-}
-.hist-bar.mod {
-  background: transparent !important;
-  border: 2px solid;
-  border-bottom: none;
-  border-radius: 3px 3px 0 0;
-  transition:
-    height var(--dur-bar) var(--ease-spring),
-    border-color 320ms ease,
-    opacity 320ms ease;
 }
 
 .hist-marker {

@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { barStyle, binsToValues, histogramRange, populationSd } from '../../shared/algorithms';
 
 interface Props {
+  /** Guesses per value (students and moderators alike; moderators are simply not scored). */
   bins: number[];
-  modBins: number[];
   count: number;
   /** False before the session has started: bars are neutral cyan and no marker is drawn. */
   hasCount: boolean;
@@ -12,23 +12,21 @@ interface Props {
   projected: number | null;
 }
 
-export function Histogram({ bins, modBins, count, hasCount, myGuess, projected }: Props) {
+export function Histogram({ bins, count, hasCount, myGuess, projected }: Props) {
   const { min, max, cols, maxN, total } = useMemo(() => {
-    const combined = bins.map((n, i) => n + (modBins[i] ?? 0));
-    const [lo, hi] = histogramRange(combined, hasCount ? count : 0);
+    const [lo, hi] = histogramRange(bins, hasCount ? count : 0);
     const sigma = populationSd(binsToValues(bins));
     const cols = [];
     let maxN = 1;
     let total = 0;
     for (let x = lo; x <= hi; x++) {
       const n = bins[x] ?? 0;
-      const m = modBins[x] ?? 0;
-      maxN = Math.max(maxN, n + m);
+      maxN = Math.max(maxN, n);
       total += n;
-      cols.push({ x, n, m, style: barStyle(x, count, sigma, hasCount) });
+      cols.push({ x, n, style: barStyle(x, count, sigma, hasCount) });
     }
     return { min: lo, max: hi, cols, maxN, total };
-  }, [bins, modBins, count, hasCount]);
+  }, [bins, count, hasCount]);
 
   const span = max - min + 1;
   const pct = (x: number) => `${((x - min + 0.5) / span) * 100}%`;
@@ -40,17 +38,6 @@ export function Histogram({ bins, modBins, count, hasCount, myGuess, projected }
         <div className="hist-cols">
           {cols.map((c) => (
             <div className="hist-col" key={c.x}>
-              {c.m > 0 && (
-                <div
-                  className="hist-bar mod"
-                  style={{
-                    height: `${(c.m / maxN) * 100}%`,
-                    borderColor: c.style.color,
-                    opacity: c.style.opacity,
-                  }}
-                  title={`${c.m} moderator guess${c.m === 1 ? '' : 'es'} of ${c.x} (not scored)`}
-                />
-              )}
               <div
                 className="hist-bar"
                 style={{
@@ -64,7 +51,7 @@ export function Histogram({ bins, modBins, count, hasCount, myGuess, projected }
             </div>
           ))}
         </div>
-        {total === 0 && modBins.every((m) => m === 0) && <div className="hist-empty">Waiting for the first guess…</div>}
+        {total === 0 && <div className="hist-empty">Waiting for the first guess…</div>}
         {hasCount && <div className="hist-marker" style={{ left: pct(count) }} />}
       </div>
       <div className="hist-axis">
