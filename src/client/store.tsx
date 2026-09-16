@@ -34,6 +34,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshBoot();
+    // Phones come back from the lock screen with a stale view; refetch whenever the tab is visible again.
+    const wake = () => {
+      if (document.visibilityState === 'visible') void refreshBoot();
+    };
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    window.addEventListener('online', wake);
+    return () => {
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+      window.removeEventListener('online', wake);
+    };
   }, [refreshBoot]);
 
   const setMe = useCallback((me: Me | null) => {

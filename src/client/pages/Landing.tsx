@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { formatClock } from '../../shared/algorithms';
 import { api } from '../api';
@@ -6,6 +6,7 @@ import { secondsUntil, useNow } from '../clock';
 import { LeaderboardView } from '../components/LeaderboardView';
 import { NumberInput } from '../components/NumberInput';
 import { useStore } from '../store';
+import { useLive } from '../useLive';
 
 export function Landing() {
   const { boot, bootError, pendingGuess, setPendingGuess, refreshBoot } = useStore();
@@ -14,6 +15,15 @@ export function Landing() {
   const [value, setValue] = useState<number | null>(pendingGuess);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stay in sync with the server: refetch the overview on arrival and whenever the session changes
+  // (a moderator creating, starting or ending a lecture while students sit on this page).
+  const live = useLive(true);
+  const liveSessionId = live.snap?.session?.id ?? null;
+  const liveState = live.snap?.session?.state ?? null;
+  useEffect(() => {
+    void refreshBoot();
+  }, [refreshBoot, liveSessionId, liveState]);
 
   if (bootError) return <div className="page"><div className="notice danger">{bootError}</div></div>;
   if (!boot) return <div className="spinner" />;
