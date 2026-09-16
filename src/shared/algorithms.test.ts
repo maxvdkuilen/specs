@@ -100,8 +100,12 @@ describe('projection', () => {
     );
   });
   it('converges toward the observed rate late in the lecture', () => {
-    const p = projectFinal({ count: 20, elapsedSec: 4500, durationSec: 4500, priorRate: 0 });
-    expect(p).toBeCloseTo(20 * (4500 / 5100), 1);
+    const p = projectFinal({ count: 20, elapsedSec: 3000, durationSec: 4500, priorRate: 0 });
+    expect(p).toBeCloseTo(20 * (4500 / 3600), 1);
+  });
+  it('never projects below the current count', () => {
+    expect(projectFinal({ count: 20, elapsedSec: 4500, durationSec: 4500, priorRate: 0 })).toBe(20);
+    expect(projectFinal({ count: 11, elapsedSec: 180, durationSec: 180, priorRate: 7 / 180 })).toBe(11);
   });
   it('priorRate prefers past sessions, then current guesses', () => {
     expect(priorRate([8, 12, 10], [1, 1, 1], 4500)).toBeCloseTo(10 / 4500);

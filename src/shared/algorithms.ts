@@ -219,11 +219,14 @@ export interface ProjectionInput {
   tauSec?: number;
 }
 
-/** Blend of the observed rate with a prior rate, scaled to the full lecture. Rounded to 0.1. */
+/**
+ * Blend of the observed rate with a prior rate, scaled to the full lecture. Rounded to 0.1.
+ * Never below the current count: the final count cannot go down.
+ */
 export function projectFinal({ count, elapsedSec, durationSec, priorRate, tauSec = 600 }: ProjectionInput): number {
   const e = Math.max(0, elapsedSec);
   const raw = ((count + priorRate * tauSec) / (e + tauSec)) * durationSec;
-  return Math.round(raw * 10) / 10;
+  return Math.max(count, Math.round(raw * 10) / 10);
 }
 
 /**
